@@ -53,11 +53,11 @@ src/main/java/br/com/labs/
 
 ## Roadmap
 
-### Fase 1: Setup Inicial
-- [ ] Configurar `pom.xml` com dependências
-- [ ] Criar `docker-compose.yaml` (PostgreSQL, Redis, Mailhog)
-- [ ] Configurar `application.yaml`
-- [ ] Configurar Virtual Threads para async
+### Fase 1: Setup Inicial ✅
+- [x] Configurar `pom.xml` com dependências
+- [x] Criar `docker-compose.yaml` (PostgreSQL, Redis, Mailhog)
+- [x] Configurar `application.yaml`
+- [x] Configurar Virtual Threads para async
 
 ### Fase 2: Domain Layer
 - [ ] Criar Value Objects (`UserId`, `Email`, `Password`, `MfaCode`)
