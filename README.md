@@ -15,14 +15,23 @@ Projeto de estudo para implementação de autenticação com Multi-Factor Authen
 
 ## Arquitetura
 
-Hexagonal Architecture (Ports & Adapters) com separação clara entre domínio, aplicação e infraestrutura.
+Clean Architecture (Uncle Bob) com separação clara entre camadas.
 
 ```
 src/main/java/br/com/labs/
-├── domain/           # Regras de negócio puras
-├── application/      # Casos de uso
-├── infrastructure/   # Adapters (JPA, Redis, Email, JWT)
-└── web/              # Controllers e DTOs da API
+├── domain/              # Entities e regras de negócio puras
+├── application/         # Use Cases (Application Business Rules)
+└── infrastructure/      # Frameworks & Drivers
+    ├── config/          # Configurações Spring
+    ├── persistence/     # Adapters de saída (JPA, Redis)
+    │   ├── jpa/
+    │   └── redis/
+    ├── email/           # Adapter de saída (SMTP)
+    ├── security/        # JWT, BCrypt, Filters
+    └── web/             # Adapter de entrada (HTTP)
+        ├── controller/
+        ├── dto/
+        └── exception/
 ```
 
 ## Fluxo de Autenticação
@@ -38,16 +47,16 @@ src/main/java/br/com/labs/
 ## Funcionalidades
 
 - [x] Modelagem da arquitetura
-- [ ] Registro de usuários
-- [ ] Login com username/password
-- [ ] Geração e envio de código MFA por email
-- [ ] Código MFA com TTL de 5 minutos (Redis)
-- [ ] Verificação do código MFA
-- [ ] Geração de JWT (Access Token + Refresh Token)
-- [ ] Refresh Token armazenado no Redis (whitelist)
-- [ ] Rate limiting: bloqueio após 3 tentativas erradas de MFA (15 min)
-- [ ] Logout com invalidação de tokens
-- [ ] Blacklist de Access Tokens revogados
+- [x] Registro de usuários
+- [x] Login com username/password
+- [x] Geração e envio de código MFA por email
+- [x] Código MFA com TTL de 5 minutos (Redis)
+- [x] Verificação do código MFA
+- [x] Geração de JWT (Access Token + Refresh Token)
+- [x] Refresh Token armazenado no Redis (whitelist)
+- [x] Rate limiting: bloqueio após 3 tentativas erradas de MFA (15 min)
+- [x] Logout com invalidação de tokens
+- [x] Blacklist de Access Tokens revogados
 
 ---
 
@@ -59,45 +68,45 @@ src/main/java/br/com/labs/
 - [x] Configurar `application.yaml`
 - [x] Configurar Virtual Threads para async
 
-### Fase 2: Domain Layer
-- [ ] Criar Value Objects (`UserId`, `Email`, `Password`, `MfaCode`)
-- [ ] Criar Entity `User`
-- [ ] Criar Sealed Class `DomainException` e exceções específicas
-- [ ] Criar Ports (interfaces dos repositories)
+### Fase 2: Domain Layer ✅
+- [x] Criar Value Objects (`UserId`, `Email`, `Username`, `Password`, `MfaCode`, `TokenPair`, `MfaToken`)
+- [x] Criar Entity `User`
+- [x] Criar Sealed Class `DomainException` e exceções específicas
+- [x] Criar Ports (interfaces dos repositories)
 
-### Fase 3: Infrastructure - Persistência
-- [ ] Configurar Flyway e criar migration da tabela `users`
-- [ ] Implementar `UserJpaEntity` e `UserJpaRepository`
-- [ ] Implementar `UserRepositoryAdapter`
-- [ ] Configurar Redis e implementar `MfaRedisRepository`
-- [ ] Implementar `TokenRedisRepository`
+### Fase 3: Infrastructure - Persistência ✅
+- [x] Configurar Flyway e criar migration da tabela `users`
+- [x] Implementar `UserJpaEntity` e `UserJpaRepository`
+- [x] Implementar `UserRepositoryAdapter`
+- [x] Configurar Redis e implementar `MfaRedisRepository`
+- [x] Implementar `TokenRedisRepository`
 
-### Fase 4: Infrastructure - Security
-- [ ] Implementar `JwtTokenProvider`
-- [ ] Implementar `BCryptPasswordEncoder`
-- [ ] Configurar `SecurityConfig`
-- [ ] Implementar `JwtAuthenticationFilter`
+### Fase 4: Infrastructure - Security ✅
+- [x] Implementar `JwtTokenProvider`
+- [x] Implementar `BCryptPasswordEncoder`
+- [x] Configurar `SecurityConfig`
+- [x] Implementar `JwtAuthenticationFilter`
 
-### Fase 5: Infrastructure - Email
-- [ ] Implementar `SmtpEmailSender`
-- [ ] Criar template de email para código MFA
+### Fase 5: Infrastructure - Email ✅
+- [x] Implementar `SmtpEmailSender`
+- [x] Criar template de email para código MFA
 
-### Fase 6: Application Layer - Use Cases
-- [ ] Implementar `RegisterUserUseCase`
-- [ ] Implementar `AuthenticateUserUseCase`
-- [ ] Implementar `VerifyMfaCodeUseCase`
-- [ ] Implementar `RefreshTokenUseCase`
-- [ ] Implementar `LogoutUseCase`
+### Fase 6: Application Layer - Use Cases ✅
+- [x] Implementar `RegisterUserUseCase`
+- [x] Implementar `AuthenticateUserUseCase`
+- [x] Implementar `VerifyMfaCodeUseCase`
+- [x] Implementar `RefreshTokenUseCase`
+- [x] Implementar `LogoutUseCase`
 
-### Fase 7: Web Layer
-- [ ] Criar Request DTOs com validação
-- [ ] Implementar `AuthController`
-- [ ] Implementar `GlobalExceptionHandler` (RFC 7807)
+### Fase 7: Web Layer ✅
+- [x] Criar Request DTOs com validação
+- [x] Implementar `AuthController`
+- [x] Implementar `GlobalExceptionHandler` (RFC 7807)
 
-### Fase 8: Testes
-- [ ] Testes unitários dos Use Cases
-- [ ] Testes de integração com Testcontainers
-- [ ] Testes dos endpoints
+### Fase 8: Testes ✅
+- [x] Testes unitários dos Use Cases
+- [x] Testes de integração com Testcontainers
+- [x] Testes dos endpoints
 
 ### Fase 9: Melhorias (opcional)
 - [ ] Documentação com OpenAPI/Swagger
