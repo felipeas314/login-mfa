@@ -1,5 +1,6 @@
 package br.com.labs.application.usecase;
 
+import br.com.labs.application.service.SecurityMonitoringService;
 import br.com.labs.domain.auth.EmailSender;
 import br.com.labs.domain.auth.MfaCode;
 import br.com.labs.domain.auth.MfaRepository;
@@ -20,28 +21,39 @@ public class AuthenticateUserUseCase {
     private final MfaRepository mfaRepository;
     private final EmailSender emailSender;
     private final JwtTokenProvider jwtTokenProvider;
+    private final SecurityMonitoringService securityMonitoringService;
 
     public AuthenticateUserUseCase(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             MfaRepository mfaRepository,
             EmailSender emailSender,
-            JwtTokenProvider jwtTokenProvider
+            JwtTokenProvider jwtTokenProvider,
+            SecurityMonitoringService securityMonitoringService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mfaRepository = mfaRepository;
         this.emailSender = emailSender;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.securityMonitoringService = securityMonitoringService;
     }
 
     public Output execute(Input input) {
         var username = new Username(input.username());
 
         User user = userRepository.findByUsername(username)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> {
+                    // Não temos userId, mas registramos a tentativa com username
+                    return new InvalidCredentialsException();
+                });
 
         if (!passwordEncoder.matches(input.password(), user.getPassword().hashedValue())) {
+            securityMonitoringService.recordLoginFailure(
+                    user.getId(),
+                    input.ipAddress(),
+                    "Invalid password"
+            );
             throw new InvalidCredentialsException();
         }
 
@@ -55,7 +67,11 @@ public class AuthenticateUserUseCase {
         return new Output(mfaToken.value(), mfaToken.expiresIn());
     }
 
-    public record Input(String username, String password) {}
+    public record Input(String username, String password, String ipAddress) {
+        public Input(String username, String password) {
+            this(username, password, "unknown");
+        }
+    }
 
     public record Output(String mfaToken, long expiresIn) {}
 }

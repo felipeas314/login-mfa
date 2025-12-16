@@ -13,6 +13,7 @@ import br.com.labs.infrastructure.web.dto.RegisterRequest;
 import br.com.labs.infrastructure.web.dto.TokenResponse;
 import br.com.labs.infrastructure.web.dto.UserResponse;
 import br.com.labs.infrastructure.web.dto.VerifyMfaRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+
+    private static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
     private final RegisterUserUseCase registerUserUseCase;
     private final AuthenticateUserUseCase authenticateUserUseCase;
@@ -62,8 +65,12 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<MfaResponse> login(@Valid @RequestBody LoginRequest request) {
-        var input = new AuthenticateUserUseCase.Input(request.username(), request.password());
+    public ResponseEntity<MfaResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String ipAddress = extractClientIp(httpRequest);
+        var input = new AuthenticateUserUseCase.Input(request.username(), request.password(), ipAddress);
 
         var output = authenticateUserUseCase.execute(input);
 
@@ -72,8 +79,12 @@ public class AuthController {
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<TokenResponse> verify(@Valid @RequestBody VerifyMfaRequest request) {
-        var input = new VerifyMfaCodeUseCase.Input(request.mfaToken(), request.code());
+    public ResponseEntity<TokenResponse> verify(
+            @Valid @RequestBody VerifyMfaRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String ipAddress = extractClientIp(httpRequest);
+        var input = new VerifyMfaCodeUseCase.Input(request.mfaToken(), request.code(), ipAddress);
 
         var output = verifyMfaCodeUseCase.execute(input);
 
@@ -120,5 +131,13 @@ public class AuthController {
             return authorizationHeader.substring(7);
         }
         throw new IllegalArgumentException("Invalid Authorization header");
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader(X_FORWARDED_FOR);
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

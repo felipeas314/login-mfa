@@ -13,15 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/**
- * Application Service responsável por monitoramento de segurança.
- *
- * Diferente de um Use Case:
- * - Não representa uma ação direta do usuário
- * - Orquestra lógica cross-cutting de segurança
- * - Pode ser chamado por múltiplos Use Cases
- * - Coordena eventos, notificações e ações preventivas
- */
 @Service
 public class SecurityMonitoringService {
 

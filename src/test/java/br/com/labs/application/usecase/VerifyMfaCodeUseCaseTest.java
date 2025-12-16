@@ -1,5 +1,6 @@
 package br.com.labs.application.usecase;
 
+import br.com.labs.application.service.SecurityMonitoringService;
 import br.com.labs.domain.auth.MfaCode;
 import br.com.labs.domain.auth.MfaRepository;
 import br.com.labs.domain.auth.TokenPair;
@@ -23,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,20 +41,23 @@ class VerifyMfaCodeUseCaseTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private SecurityMonitoringService securityMonitoringService;
+
     private VerifyMfaCodeUseCase useCase;
 
     private UserId userId;
 
     @BeforeEach
     void setUp() {
-        useCase = new VerifyMfaCodeUseCase(mfaRepository, tokenRepository, jwtTokenProvider, 3);
+        useCase = new VerifyMfaCodeUseCase(mfaRepository, tokenRepository, jwtTokenProvider, securityMonitoringService, 3);
         userId = UserId.generate();
     }
 
     @Test
     @DisplayName("Should verify MFA code and return tokens")
     void shouldVerifyMfaCodeAndReturnTokens() {
-        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "123456");
+        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "123456", "192.168.1.1");
         var tokenPair = new TokenPair("access.token", "refresh.token", 900000, 604800000);
 
         when(jwtTokenProvider.validateMfaToken("mfa.token")).thenReturn(userId);
@@ -68,12 +73,13 @@ class VerifyMfaCodeUseCaseTest {
 
         verify(mfaRepository).deleteCode(userId);
         verify(tokenRepository).saveRefreshToken("refresh-id", userId);
+        verify(securityMonitoringService).recordSuccessfulLogin(userId, "192.168.1.1");
     }
 
     @Test
     @DisplayName("Should throw exception when user is blocked")
     void shouldThrowExceptionWhenUserIsBlocked() {
-        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "123456");
+        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "123456", "192.168.1.1");
 
         when(jwtTokenProvider.validateMfaToken("mfa.token")).thenReturn(userId);
         when(mfaRepository.isBlocked(userId)).thenReturn(true);
@@ -89,7 +95,7 @@ class VerifyMfaCodeUseCaseTest {
     @Test
     @DisplayName("Should throw exception when MFA code expired")
     void shouldThrowExceptionWhenCodeExpired() {
-        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "123456");
+        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "123456", "192.168.1.1");
 
         when(jwtTokenProvider.validateMfaToken("mfa.token")).thenReturn(userId);
         when(mfaRepository.isBlocked(userId)).thenReturn(false);
@@ -100,9 +106,9 @@ class VerifyMfaCodeUseCaseTest {
     }
 
     @Test
-    @DisplayName("Should increment attempts when code is wrong")
+    @DisplayName("Should increment attempts and record failure when code is wrong")
     void shouldIncrementAttemptsWhenCodeIsWrong() {
-        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "000000");
+        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "000000", "192.168.1.1");
 
         when(jwtTokenProvider.validateMfaToken("mfa.token")).thenReturn(userId);
         when(mfaRepository.isBlocked(userId)).thenReturn(false);
@@ -114,13 +120,14 @@ class VerifyMfaCodeUseCaseTest {
                 .extracting("remainingAttempts")
                 .isEqualTo(2);
 
+        verify(securityMonitoringService).recordMfaFailure(eq(userId), eq("192.168.1.1"), eq(1));
         verify(tokenRepository, never()).saveRefreshToken(anyString(), any());
     }
 
     @Test
     @DisplayName("Should block user after max attempts")
     void shouldBlockUserAfterMaxAttempts() {
-        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "000000");
+        var input = new VerifyMfaCodeUseCase.Input("mfa.token", "000000", "192.168.1.1");
 
         when(jwtTokenProvider.validateMfaToken("mfa.token")).thenReturn(userId);
         when(mfaRepository.isBlocked(userId)).thenReturn(false);
@@ -133,12 +140,14 @@ class VerifyMfaCodeUseCaseTest {
 
         verify(mfaRepository).block(userId);
         verify(mfaRepository).deleteCode(userId);
+        verify(securityMonitoringService).recordMfaFailure(eq(userId), eq("192.168.1.1"), eq(3));
+        verify(securityMonitoringService).blockAccount(eq(userId), eq("192.168.1.1"), anyString());
     }
 
     @Test
     @DisplayName("Should throw exception when MFA token is invalid")
     void shouldThrowExceptionWhenMfaTokenIsInvalid() {
-        var input = new VerifyMfaCodeUseCase.Input("invalid.token", "123456");
+        var input = new VerifyMfaCodeUseCase.Input("invalid.token", "123456", "192.168.1.1");
 
         when(jwtTokenProvider.validateMfaToken("invalid.token"))
                 .thenThrow(new InvalidTokenException("Token expired"));

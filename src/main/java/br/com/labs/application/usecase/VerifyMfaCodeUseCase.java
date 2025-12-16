@@ -1,5 +1,6 @@
 package br.com.labs.application.usecase;
 
+import br.com.labs.application.service.SecurityMonitoringService;
 import br.com.labs.domain.auth.MfaRepository;
 import br.com.labs.domain.auth.TokenPair;
 import br.com.labs.domain.auth.TokenRepository;
@@ -17,17 +18,20 @@ public class VerifyMfaCodeUseCase {
     private final MfaRepository mfaRepository;
     private final TokenRepository tokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final SecurityMonitoringService securityMonitoringService;
     private final int maxAttempts;
 
     public VerifyMfaCodeUseCase(
             MfaRepository mfaRepository,
             TokenRepository tokenRepository,
             JwtTokenProvider jwtTokenProvider,
+            SecurityMonitoringService securityMonitoringService,
             @Value("${mfa.block.max-attempts}") int maxAttempts
     ) {
         this.mfaRepository = mfaRepository;
         this.tokenRepository = tokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.securityMonitoringService = securityMonitoringService;
         this.maxAttempts = maxAttempts;
     }
 
@@ -40,7 +44,7 @@ public class VerifyMfaCodeUseCase {
                 .orElseThrow(MfaCodeExpiredException::new);
 
         if (!storedCode.matches(input.code())) {
-            handleFailedAttempt(userId);
+            handleFailedAttempt(userId, input.ipAddress());
         }
 
         mfaRepository.deleteCode(userId);
@@ -49,6 +53,8 @@ public class VerifyMfaCodeUseCase {
 
         String refreshTokenId = jwtTokenProvider.extractRefreshTokenId(tokenPair.refreshToken());
         tokenRepository.saveRefreshToken(refreshTokenId, userId);
+
+        securityMonitoringService.recordSuccessfulLogin(userId, input.ipAddress());
 
         return new Output(
                 tokenPair.accessToken(),
@@ -65,12 +71,15 @@ public class VerifyMfaCodeUseCase {
         }
     }
 
-    private void handleFailedAttempt(UserId userId) {
+    private void handleFailedAttempt(UserId userId, String ipAddress) {
         int attempts = mfaRepository.incrementAttempts(userId);
+
+        securityMonitoringService.recordMfaFailure(userId, ipAddress, attempts);
 
         if (attempts >= maxAttempts) {
             mfaRepository.block(userId);
             mfaRepository.deleteCode(userId);
+            securityMonitoringService.blockAccount(userId, ipAddress, "Too many MFA attempts");
             long ttl = mfaRepository.getBlockTtl(userId);
             throw new MfaBlockedException(ttl);
         }
@@ -79,7 +88,11 @@ public class VerifyMfaCodeUseCase {
         throw new MfaCodeInvalidException(remaining);
     }
 
-    public record Input(String mfaToken, String code) {}
+    public record Input(String mfaToken, String code, String ipAddress) {
+        public Input(String mfaToken, String code) {
+            this(mfaToken, code, "unknown");
+        }
+    }
 
     public record Output(
             String accessToken,

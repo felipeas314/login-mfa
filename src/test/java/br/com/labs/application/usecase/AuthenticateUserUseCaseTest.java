@@ -1,5 +1,6 @@
 package br.com.labs.application.usecase;
 
+import br.com.labs.application.service.SecurityMonitoringService;
 import br.com.labs.domain.auth.EmailSender;
 import br.com.labs.domain.auth.MfaCode;
 import br.com.labs.domain.auth.MfaRepository;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +49,9 @@ class AuthenticateUserUseCaseTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private SecurityMonitoringService securityMonitoringService;
+
     private AuthenticateUserUseCase useCase;
 
     private User testUser;
@@ -58,7 +63,8 @@ class AuthenticateUserUseCaseTest {
                 passwordEncoder,
                 mfaRepository,
                 emailSender,
-                jwtTokenProvider
+                jwtTokenProvider,
+                securityMonitoringService
         );
 
         testUser = User.create(
@@ -71,7 +77,7 @@ class AuthenticateUserUseCaseTest {
     @Test
     @DisplayName("Should authenticate user and send MFA code")
     void shouldAuthenticateAndSendMfaCode() {
-        var input = new AuthenticateUserUseCase.Input("john.doe", "Password123");
+        var input = new AuthenticateUserUseCase.Input("john.doe", "Password123", "192.168.1.1");
 
         when(userRepository.findByUsername(any(Username.class))).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("Password123", "hashed_password")).thenReturn(true);
@@ -89,7 +95,7 @@ class AuthenticateUserUseCaseTest {
     @Test
     @DisplayName("Should throw exception when user not found")
     void shouldThrowExceptionWhenUserNotFound() {
-        var input = new AuthenticateUserUseCase.Input("unknown.user", "Password123");
+        var input = new AuthenticateUserUseCase.Input("unknown.user", "Password123", "192.168.1.1");
 
         when(userRepository.findByUsername(any(Username.class))).thenReturn(Optional.empty());
 
@@ -101,9 +107,9 @@ class AuthenticateUserUseCaseTest {
     }
 
     @Test
-    @DisplayName("Should throw exception when password is wrong")
+    @DisplayName("Should throw exception and record failure when password is wrong")
     void shouldThrowExceptionWhenPasswordIsWrong() {
-        var input = new AuthenticateUserUseCase.Input("john.doe", "WrongPassword123");
+        var input = new AuthenticateUserUseCase.Input("john.doe", "WrongPassword123", "192.168.1.1");
 
         when(userRepository.findByUsername(any(Username.class))).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
@@ -111,6 +117,11 @@ class AuthenticateUserUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(input))
                 .isInstanceOf(InvalidCredentialsException.class);
 
+        verify(securityMonitoringService).recordLoginFailure(
+                eq(testUser.getId()),
+                eq("192.168.1.1"),
+                eq("Invalid password")
+        );
         verify(mfaRepository, never()).saveCode(any(), any());
         verify(emailSender, never()).sendMfaCode(any(), any());
     }
