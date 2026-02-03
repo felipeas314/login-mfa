@@ -1,0 +1,1017 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "Login MFA API",
+		"description": "API de autenticação com Multi-Factor Authentication (MFA) via email.\n\n## Fluxo de Autenticação\n\n1. **Register** - Criar uma nova conta\n2. **Login** - Fazer login com username/password (recebe código MFA por email)\n3. **Verify MFA** - Verificar o código MFA e obter tokens de acesso\n4. **Refresh Token** - Renovar o access token usando o refresh token\n5. **Logout** - Invalidar os tokens\n\n## Configuração\n\nAntes de usar, configure as variáveis de ambiente:\n- `baseUrl`: URL base da API (default: http://localhost:8080)\n- `username`: Username para testes\n- `email`: Email para testes\n- `password`: Senha para testes",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has userId\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('userId');",
+									"    pm.expect(jsonData).to.have.property('username');",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"    ",
+									"    // Salvar userId para uso posterior",
+									"    pm.collectionVariables.set(\"userId\", jsonData.userId);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username}}\",\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registra um novo usuário no sistema.\n\n**Validações:**\n- `username`: 3-50 caracteres, obrigatório\n- `email`: Email válido, obrigatório\n- `password`: 8-100 caracteres, obrigatório\n\n**Possíveis erros:**\n- `409 Conflict`: Usuário ou email já existe\n- `400 Bad Request`: Erro de validação"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"minhasenha123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"register"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"userId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\"\n}"
+						},
+						{
+							"name": "User Already Exists",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"minhasenha123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"register"
+									]
+								}
+							},
+							"status": "Conflict",
+							"code": 409,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/user-already-exists\",\n    \"title\": \"User Already Exists\",\n    \"status\": 409,\n    \"detail\": \"User with this email already exists\",\n    \"code\": \"USER_001\"\n}"
+						},
+						{
+							"name": "Validation Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"ab\",\n    \"email\": \"invalid-email\",\n    \"password\": \"123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"register"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/validation-error\",\n    \"title\": \"Validation Error\",\n    \"status\": 400,\n    \"detail\": \"Validation failed for one or more fields\",\n    \"code\": \"VALIDATION_001\",\n    \"errors\": {\n        \"username\": \"Username must be between 3 and 50 characters\",\n        \"email\": \"Invalid email format\",\n        \"password\": \"Password must be at least 8 characters\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has mfaToken\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('mfaToken');",
+									"    pm.expect(jsonData).to.have.property('expiresIn');",
+									"    ",
+									"    // Salvar mfaToken para uso na verificação",
+									"    pm.collectionVariables.set(\"mfaToken\", jsonData.mfaToken);",
+									"});",
+									"",
+									"pm.test(\"MFA token expires in 5 minutes\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.expiresIn).to.equal(300000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Forwarded-For",
+								"value": "{{clientIp}}",
+								"description": "IP do cliente (opcional)",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Realiza o login do usuário e envia um código MFA por email.\n\n**Fluxo:**\n1. Valida credenciais (username/password)\n2. Gera código MFA de 6 dígitos\n3. Envia código por email\n4. Retorna mfaToken para usar na verificação\n\n**Próximo passo:** Use o endpoint `/verify` com o mfaToken e o código recebido por email.\n\n**Possíveis erros:**\n- `401 Unauthorized`: Credenciais inválidas"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"johndoe\",\n    \"password\": \"minhasenha123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"login"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"mfaToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhYmMxMjMiLCJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJ0eXBlIjoibWZhIiwiaWF0IjoxNjE2MTYxNjE2LCJleHAiOjE2MTYxNjE5MTZ9.xxx\",\n    \"expiresIn\": 300000\n}"
+						},
+						{
+							"name": "Invalid Credentials",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"johndoe\",\n    \"password\": \"senhaerrada\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"login"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/invalid-credentials\",\n    \"title\": \"Invalid Credentials\",\n    \"status\": 401,\n    \"detail\": \"Invalid username or password\",\n    \"code\": \"AUTH_001\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Verify MFA",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has tokens\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('accessToken');",
+									"    pm.expect(jsonData).to.have.property('refreshToken');",
+									"    pm.expect(jsonData).to.have.property('tokenType');",
+									"    pm.expect(jsonData.tokenType).to.equal('Bearer');",
+									"    ",
+									"    // Salvar tokens para uso posterior",
+									"    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+									"    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+									"});",
+									"",
+									"pm.test(\"Access token expires in 15 minutes\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.accessTokenExpiresIn).to.equal(900000);",
+									"});",
+									"",
+									"pm.test(\"Refresh token expires in 7 days\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.refreshTokenExpiresIn).to.equal(604800000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Forwarded-For",
+								"value": "{{clientIp}}",
+								"description": "IP do cliente (opcional)",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"mfaToken\": \"{{mfaToken}}\",\n    \"code\": \"{{mfaCode}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/verify",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"verify"
+							]
+						},
+						"description": "Verifica o código MFA e retorna os tokens de acesso.\n\n**Requisitos:**\n- `mfaToken`: Token recebido no login\n- `code`: Código de 6 dígitos recebido por email\n\n**Tokens retornados:**\n- `accessToken`: Token de acesso (15 min)\n- `refreshToken`: Token de refresh (7 dias)\n\n**Segurança:**\n- Máximo 3 tentativas por código\n- Bloqueio de 15 minutos após exceder tentativas\n\n**Possíveis erros:**\n- `401 Unauthorized`: Token MFA inválido ou expirado\n- `410 Gone`: Código MFA expirado (TTL: 5 min)\n- `422 Unprocessable Entity`: Código MFA inválido\n- `429 Too Many Requests`: Conta bloqueada por tentativas excessivas"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"mfaToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"code\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/verify",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"verify"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkZWYxMjMiLCJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJ0eXBlIjoiYWNjZXNzIiwiaWF0IjoxNjE2MTYxNjE2LCJleHAiOjE2MTYxNjI1MTZ9.xxx\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJnaGkxMjMiLCJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTYxNjE2MTYxNiwiZXhwIjoxNjE2NzY2NDE2fQ.xxx\",\n    \"tokenType\": \"Bearer\",\n    \"accessTokenExpiresIn\": 900000,\n    \"refreshTokenExpiresIn\": 604800000\n}"
+						},
+						{
+							"name": "MFA Code Expired",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"mfaToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"code\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/verify",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"verify"
+									]
+								}
+							},
+							"status": "Gone",
+							"code": 410,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/mfa-code-expired\",\n    \"title\": \"MFA Code Expired\",\n    \"status\": 410,\n    \"detail\": \"MFA code has expired\",\n    \"code\": \"MFA_001\"\n}"
+						},
+						{
+							"name": "Invalid MFA Code",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"mfaToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"code\": \"000000\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/verify",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"verify"
+									]
+								}
+							},
+							"status": "Unprocessable Entity",
+							"code": 422,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/mfa-code-invalid\",\n    \"title\": \"Invalid MFA Code\",\n    \"status\": 422,\n    \"detail\": \"Invalid MFA code. 2 attempts remaining\",\n    \"code\": \"MFA_002\",\n    \"remainingAttempts\": 2\n}"
+						},
+						{
+							"name": "Too Many Attempts",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"mfaToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"code\": \"000000\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/verify",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"verify"
+									]
+								}
+							},
+							"status": "Too Many Requests",
+							"code": 429,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/mfa-blocked\",\n    \"title\": \"Too Many Attempts\",\n    \"status\": 429,\n    \"detail\": \"Too many failed attempts. Try again in 847 seconds\",\n    \"code\": \"MFA_003\",\n    \"retryAfterSeconds\": 847\n}"
+						}
+					]
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has new tokens\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('accessToken');",
+									"    pm.expect(jsonData).to.have.property('refreshToken');",
+									"    pm.expect(jsonData).to.have.property('tokenType');",
+									"    pm.expect(jsonData.tokenType).to.equal('Bearer');",
+									"    ",
+									"    // Atualizar tokens salvos",
+									"    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+									"    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Renova o access token usando o refresh token.\n\n**Comportamento:**\n- Invalida o refresh token antigo\n- Gera um novo par de tokens\n- Armazena o novo refresh token no Redis\n\n**Possíveis erros:**\n- `401 Unauthorized`: Refresh token inválido ou revogado"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/refresh",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"refresh"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJqazEyMyIsInN1YiI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE2MTYxNjI1MTYsImV4cCI6MTYxNjE2MzQxNn0.xxx\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJsbTEyMyIsInN1YiI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCIsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNjE2MTYyNTE2LCJleHAiOjE2MTY3NjczMTZ9.xxx\",\n    \"tokenType\": \"Bearer\",\n    \"accessTokenExpiresIn\": 900000,\n    \"refreshTokenExpiresIn\": 604800000\n}"
+						},
+						{
+							"name": "Invalid Refresh Token",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"refreshToken\": \"invalid-token\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/refresh",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"refresh"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/invalid-token\",\n    \"title\": \"Invalid Token\",\n    \"status\": 401,\n    \"detail\": \"Refresh token not found or revoked\",\n    \"code\": \"INVALID_TOKEN\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"// Limpar tokens salvos após logout",
+									"pm.collectionVariables.unset(\"accessToken\");",
+									"pm.collectionVariables.unset(\"refreshToken\");",
+									"pm.collectionVariables.unset(\"mfaToken\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Realiza o logout do usuário e revoga os tokens.\n\n**Autenticação:** Requer Bearer token no header Authorization.\n\n**Comportamento:**\n- Adiciona o access token à blacklist do Redis\n- Opcionalmente invalida o refresh token\n- Retorna 204 No Content\n\n**Possíveis erros:**\n- `400 Bad Request`: Header Authorization inválido\n- `401 Unauthorized`: Token ausente ou inválido"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/logout",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"logout"
+									]
+								}
+							},
+							"status": "No Content",
+							"code": 204,
+							"_postman_previewlanguage": "text",
+							"header": [],
+							"body": ""
+						},
+						{
+							"name": "Unauthorized",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/logout",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"logout"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/problem+json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://api.loginmfa.com/errors/invalid-token\",\n    \"title\": \"Unauthorized\",\n    \"status\": 401,\n    \"detail\": \"Missing or invalid authorization token\",\n    \"code\": \"INVALID_TOKEN\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Endpoints de autenticação com MFA (Multi-Factor Authentication)"
+		},
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Application is UP\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.equal(\"UP\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/actuator/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"actuator",
+								"health"
+							]
+						},
+						"description": "Verifica o status de saúde da aplicação.\n\nRetorna o status da aplicação e seus componentes (banco de dados, Redis, etc.)."
+					},
+					"response": [
+						{
+							"name": "Healthy",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/actuator/health",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"actuator",
+										"health"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"status\": \"UP\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Application Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/actuator/info",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"actuator",
+								"info"
+							]
+						},
+						"description": "Retorna informações sobre a aplicação."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/actuator/info",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"actuator",
+										"info"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{}"
+						}
+					]
+				}
+			],
+			"description": "Endpoints de monitoramento e health check"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "testuser",
+			"type": "string"
+		},
+		{
+			"key": "email",
+			"value": "test@example.com",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "minhasenha123",
+			"type": "string"
+		},
+		{
+			"key": "mfaCode",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "mfaToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "clientIp",
+			"value": "127.0.0.1",
+			"type": "string"
+		}
+	]
+}

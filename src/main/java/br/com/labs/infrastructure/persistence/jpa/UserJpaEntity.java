@@ -2,17 +2,20 @@ package br.com.labs.infrastructure.persistence.jpa;
 
 import br.com.labs.domain.user.*;
 import jakarta.persistence.*;
+import org.springframework.data.domain.Persistable;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class UserJpaEntity {
+public class UserJpaEntity implements Persistable<UUID> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Transient
+    private boolean isNew = true;
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;
@@ -33,6 +36,10 @@ public class UserJpaEntity {
     }
 
     public static UserJpaEntity fromDomain(User user) {
+        return fromDomain(user, true);
+    }
+
+    public static UserJpaEntity fromDomain(User user, boolean isNew) {
         var entity = new UserJpaEntity();
         entity.id = user.getId().value();
         entity.username = user.getUsername().value();
@@ -40,6 +47,7 @@ public class UserJpaEntity {
         entity.passwordHash = user.getPassword().hashedValue();
         entity.createdAt = user.getCreatedAt();
         entity.updatedAt = user.getUpdatedAt();
+        entity.isNew = isNew;
         return entity;
     }
 
@@ -54,8 +62,20 @@ public class UserJpaEntity {
         );
     }
 
+    @Override
     public UUID getId() {
         return id;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    void markNotNew() {
+        this.isNew = false;
     }
 
     public String getUsername() {

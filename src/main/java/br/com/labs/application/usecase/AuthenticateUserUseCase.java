@@ -7,6 +7,7 @@ import br.com.labs.domain.auth.MfaRepository;
 import br.com.labs.domain.auth.MfaToken;
 import br.com.labs.domain.auth.PasswordEncoder;
 import br.com.labs.domain.exception.InvalidCredentialsException;
+import br.com.labs.domain.exception.MfaBlockedException;
 import br.com.labs.domain.user.User;
 import br.com.labs.domain.user.UserRepository;
 import br.com.labs.domain.user.Username;
@@ -57,6 +58,8 @@ public class AuthenticateUserUseCase {
             throw new InvalidCredentialsException();
         }
 
+        checkIfBlocked(user);
+
         var mfaCode = MfaCode.generate();
         mfaRepository.saveCode(user.getId(), mfaCode);
 
@@ -65,6 +68,13 @@ public class AuthenticateUserUseCase {
         MfaToken mfaToken = jwtTokenProvider.generateMfaToken(user.getId());
 
         return new Output(mfaToken.value(), mfaToken.expiresIn());
+    }
+
+    private void checkIfBlocked(User user) {
+        if (mfaRepository.isBlocked(user.getId())) {
+            long ttl = mfaRepository.getBlockTtl(user.getId());
+            throw new MfaBlockedException(ttl);
+        }
     }
 
     public record Input(String username, String password, String ipAddress) {

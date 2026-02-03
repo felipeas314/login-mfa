@@ -37,6 +37,17 @@ services:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Web UI
 
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: login-mfa-redisinsight
+    ports:
+      - "5540:5540"   # Web UI
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      - redis
+
 volumes:
   postgres_data:
   redis_data:
+  redisinsight_data:
